@@ -50,6 +50,59 @@ etc_backend/
 │   │   │       └── EtcBackendApplication.java
 │   │   └── resources/
 │   │       └── application.properties
+```markdown
+# ETC Backend
+
+Backend desarrollado con Spring Boot y Maven, configurado para trabajar con PostgreSQL.
+
+## Requisitos Previos
+
+- Java 17 o superior
+- Maven 3.6 o superior
+- PostgreSQL 12 o superior
+
+## Configuración de la Base de Datos
+
+1. Asegúrate de tener PostgreSQL instalado y ejecutándose
+2. Crea la base de datos:
+   ```sql
+   CREATE DATABASE etc_db;
+   ```
+3. Actualiza las credenciales en `src/main/resources/application.properties`:
+   - `spring.datasource.username`: tu usuario de PostgreSQL
+   - `spring.datasource.password`: tu contraseña de PostgreSQL
+   - `spring.datasource.url`: ajusta el host y puerto si es necesario
+
+## Ejecución
+
+### Compilar el proyecto
+```bash
+mvn clean install
+```
+
+### Ejecutar la aplicación
+```bash
+mvn spring-boot:run
+```
+
+O ejecutar el JAR:
+```bash
+java -jar target/etc-backend-1.0.0.jar
+```
+
+La aplicación estará disponible en: `http://localhost:8080`
+
+## Estructura del Proyecto
+
+```
+etc_backend/
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── com/etc/backend/
+│   │   │       └── EtcBackendApplication.java
+│   │   └── resources/
+│   │       └── application.properties
 │   └── test/
 │       └── java/
 │           └── com/etc/backend/
@@ -173,4 +226,9 @@ El proyecto incluye todas las entidades del esquema de base de datos:
 - Para producción, considera cambiar a `validate` o `none` y usar migraciones con Flyway o Liquibase.
 - La configuración de JWT se encuentra en `application.properties` con las propiedades `jwt.secret` y `jwt.expiration`.
 - El sistema incluye bloqueo automático de usuarios después de 5 intentos fallidos de login.
+
+
+```
+
+Para la documentación completa de endpoints y ejemplos JSON, consulta `docs/ENDPOINTS.md`.
 
