@@ -9,5 +9,6 @@ import java.util.Optional;
 @Repository
 public interface DocenteRepository extends JpaRepository<Docente, Integer> {
     Optional<Docente> findByUsuarioId(Integer usuarioId);
+    long countByEstadoTrue();
 }
 
