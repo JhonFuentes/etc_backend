@@ -33,7 +33,10 @@ public class UsuarioController {
             if (u.getPersona() != null) {
                 personaId = u.getPersona().getId();
                 personaNombres = u.getPersona().getNombres();
-                personaApellidos = u.getPersona().getApellidos();
+                // Persona stores apellido paterno/materno as apPaterno/apMaterno
+                String apP = u.getPersona().getApPaterno();
+                String apM = u.getPersona().getApMaterno();
+                personaApellidos = (apP == null ? "" : apP) + (apM == null ? "" : " " + apM);
             }
         } catch (Exception ex) {
             // ignore lazy init

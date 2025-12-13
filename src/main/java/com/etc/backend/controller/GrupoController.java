@@ -32,8 +32,17 @@ public class GrupoController {
             }
             if (g.getDocente() != null) {
                 docenteId = g.getDocente().getId();
-                if (g.getDocente().getPersona() != null) {
-                    docenteNombres = g.getDocente().getPersona().getNombres() + " " + g.getDocente().getPersona().getApellidos();
+                try {
+                    if (g.getDocente().getUsuario() != null && g.getDocente().getUsuario().getPersona() != null) {
+                        var p = g.getDocente().getUsuario().getPersona();
+                        String apP = p.getApPaterno();
+                        String apM = p.getApMaterno();
+                        docenteNombres = (p.getNombres() == null ? "" : p.getNombres())
+                                + (apP == null ? "" : " " + apP)
+                                + (apM == null ? "" : " " + apM);
+                    }
+                } catch (Exception ignored) {
+                    // ignore lazy init
                 }
             }
             if (g.getPeriodoAcademico() != null) {
