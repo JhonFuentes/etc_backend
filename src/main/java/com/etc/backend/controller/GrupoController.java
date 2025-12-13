@@ -52,20 +52,19 @@ public class GrupoController {
         } catch (Exception ex) {
             // ignore lazy init
         }
-        GrupoSimpleResponse resp = new GrupoSimpleResponse(
-                g.getId(),
-                materiaId,
-                materiaNombre,
-                docenteId,
-                docenteNombres,
-                periodoId,
-                periodoNombre,
-                g.getNombre(),
-                g.getCupoMaximo(),
-                g.getCupoActual(),
-                g.getEstado(),
-                g.getCreatedAt()
-        );
+    GrupoSimpleResponse resp = new GrupoSimpleResponse();
+    resp.setId(g.getId());
+    resp.setMateriaId(materiaId);
+    resp.setMateriaNombre(materiaNombre);
+    resp.setDocenteId(docenteId);
+    resp.setDocenteNombres(docenteNombres);
+    resp.setPeriodoAcademicoId(periodoId);
+    resp.setPeriodoAcademicoNombre(periodoNombre);
+    resp.setNombre(g.getNombre());
+    resp.setCupoMaximo(g.getCupoMaximo());
+    resp.setCupoActual(g.getCupoActual());
+    resp.setEstado(g.getEstado());
+    resp.setCreatedAt(g.getCreatedAt());
         // populate nested objects for backward compatibility
         try {
             if (g.getMateria() != null) {
