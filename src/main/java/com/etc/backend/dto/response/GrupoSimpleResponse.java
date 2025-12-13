@@ -13,8 +13,10 @@ public class GrupoSimpleResponse {
     private Integer id;
     private Integer materiaId;
     private String materiaNombre;
+    private MateriaMini materia;
     private Integer docenteId;
     private String docenteNombres;
+    private DocenteMini docente;
     private Integer periodoAcademicoId;
     private String periodoAcademicoNombre;
     private String nombre;
@@ -22,4 +24,22 @@ public class GrupoSimpleResponse {
     private Integer cupoActual;
     private Boolean estado;
     private LocalDateTime createdAt;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class MateriaMini {
+        private Integer id;
+        private String nombre;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DocenteMini {
+        private Integer id;
+        private String nombres;
+        private String apPaterno;
+        private String apMaterno;
+    }
 }

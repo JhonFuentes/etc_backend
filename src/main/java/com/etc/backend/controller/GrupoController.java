@@ -52,7 +52,7 @@ public class GrupoController {
         } catch (Exception ex) {
             // ignore lazy init
         }
-        return new GrupoSimpleResponse(
+        GrupoSimpleResponse resp = new GrupoSimpleResponse(
                 g.getId(),
                 materiaId,
                 materiaNombre,
@@ -66,6 +66,30 @@ public class GrupoController {
                 g.getEstado(),
                 g.getCreatedAt()
         );
+        // populate nested objects for backward compatibility
+        try {
+            if (g.getMateria() != null) {
+                resp.setMateria(new GrupoSimpleResponse.MateriaMini(g.getMateria().getId(), g.getMateria().getNombre()));
+            }
+        } catch (Exception ignored) {}
+        try {
+            if (g.getDocente() != null) {
+                Integer did = g.getDocente().getId();
+                String nombres = null;
+                String apP = null;
+                String apM = null;
+                try {
+                    if (g.getDocente().getUsuario() != null && g.getDocente().getUsuario().getPersona() != null) {
+                        var p = g.getDocente().getUsuario().getPersona();
+                        nombres = p.getNombres();
+                        apP = p.getApPaterno();
+                        apM = p.getApMaterno();
+                    }
+                } catch (Exception ignored) {}
+                resp.setDocente(new GrupoSimpleResponse.DocenteMini(did, nombres, apP, apM));
+            }
+        } catch (Exception ignored) {}
+        return resp;
     }
 
     @GetMapping
