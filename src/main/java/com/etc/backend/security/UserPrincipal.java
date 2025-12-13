@@ -28,8 +28,12 @@ public class UserPrincipal implements UserDetails {
     }
 
     public static UserPrincipal create(Usuario usuario) {
+        String raw = usuario.getRol() != null && usuario.getRol().getNombre() != null
+                ? usuario.getRol().getNombre()
+                : "";
+        String normalized = normalizeRoleName(raw);
         Collection<GrantedAuthority> authorities = Collections.singletonList(
-            new SimpleGrantedAuthority("ROLE_" + usuario.getRol().getNombre().toUpperCase())
+            new SimpleGrantedAuthority("ROLE_" + normalized)
         );
 
         return new UserPrincipal(
@@ -40,6 +44,19 @@ public class UserPrincipal implements UserDetails {
             usuario.getEstado(),
             !usuario.getBloqueado()
         );
+    }
+
+    private static String normalizeRoleName(String raw) {
+        if (raw == null) return "USER";
+        String r = raw.trim().toLowerCase();
+        // map common Spanish role names to canonical codes used in @PreAuthorize
+        if (r.contains("admin")) return "ADMIN"; // Administrador, Administración
+        if (r.contains("director")) return "DIRECTOR";
+        if (r.contains("docent")) return "DOCENTE";
+        if (r.contains("estudiant")) return "ESTUDIANTE";
+        if (r.contains("secret")) return "SECRETARIA";
+        // fallback: remove spaces and uppercase
+        return r.replaceAll("\\s+", "_").toUpperCase();
     }
 
     public Integer getId() {
