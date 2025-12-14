@@ -70,233 +70,264 @@ Si un usuario con rol `ADMIN` recibe un error con mensaje "Acceso denegado":
         "username": "admin",
         "rol": { "id": 1, "nombre": "ADMIN" },
         "persona": { "id": 10, "nombres": "Juan", "apPaterno": "Pérez", "apMaterno": "Gómez", "email": "juan.perez@example.com" },
-        "ultimoAcceso": "2025-12-10T12:34:56",
-        "estado": true,
-        "createdAt": "2025-01-01T10:00:00"
-      }
-    ]
-    ```
+        ## ENDPOINTS - API ETC Backend
 
-- GET /api/usuarios/{id}
-  - Descripción: devuelve un usuario por su ID (200) o 404 si no existe.
+        Este documento presenta, por recurso, cada endpoint con su ruta, método HTTP, roles autorizados y la forma de la respuesta (DTO resumido). Está pensado para ser un resumen práctico: endpoint → método → roles → respuesta.
 
-Notas: la entidad `Persona` usa campos `apPaterno` y `apMaterno` (no `apellidos`).
+        Notas rápidas:
+        - Las respuestas devueltas por los controladores están normalizadas como DTOs (ej. `UsuarioResponse`, `EstudianteResponse`, `InscripcionResponse`, etc.) para evitar serializar entidades JPA completas.
+        - Los roles en las anotaciones usan el prefijo `ROLE_` (p. ej. `ROLE_ADMIN`, `ROLE_DOCENTE`, `ROLE_ESTUDIANTE`, `ROLE_SECRETARIA`, `ROLE_DIRECTOR`).
+        - Para restricciones de propiedad (ownership) se usa un bean `securityService` con métodos como `isDocenteOfInscripcion(...)`, `isEstudianteOwner(...)` y similares en `@PreAuthorize`.
 
-## Estudiantes
+        Formato por entrada:
+        - Path: (método)
+        - Roles: lista de roles autorizados o expresión @PreAuthorize indicada
+        - Respuesta: nombre del DTO / esquema resumido (campos principales)
 
-- GET /api/estudiantes
-  - Descripción: lista los estudiantes.
-  - Autorización: requiere rol `ADMIN` o `DOCENTE` según configuración.
-  - Respuesta 200 (application/json) — ejemplo:
-    ```json
-    [
-      {
-        "id": 5,
-        "usuario": { "id": 12, "username": "estudiante1" },
-        "codigoEstudiante": "EST2025001",
-        "fechaAdmision": "2021-03-15",
-        "estadoAcademico": "Activo",
-        "estado": true,
-        "createdAt": "2021-03-15T09:00:00"
-      }
-    ]
-    ```
+        ----------------------------------------
 
-- GET /api/estudiantes/{id}
-  - Descripción: obtener estudiante por ID (200) o 404.
+        ## Autenticación
 
-- GET /api/estudiantes/codigo/{codigo}
-  - Descripción: obtener estudiante por código único (200) o 404.
+        - /api/auth/login (POST)
+          - Roles: public (no auth)
+          - Request: { "username": "...", "password": "..." }
+          - Respuesta 200: { "token": "<jwt>", "type": "Bearer", "id": 1, "username": "...", "email": "...", "rol": "ADMIN", "nombreCompleto": "..." }
 
-## Carreras
+        ## Salud
 
-- GET /api/carreras
-  - Descripción: lista las carreras (por defecto activas).
-  - Respuesta 200 — ejemplo:
-    ```json
-    [ { "id": 2, "codigo": "INGSIS", "nombre": "Ingeniería de Sistemas", "duracionSemestres": 10, "estado": true } ]
-    ```
+        - /api/health (GET)
+          - Roles: public
+          - Respuesta 200: { "status": "UP" }
 
-- GET /api/carreras/{id}
-  - Descripción: obtener carrera por ID (200) o 404.
+        ## Usuarios
 
-## Materias
+        - /api/usuarios (GET)
+          - Roles: ROLE_ADMIN
+          - Respuesta 200: [ UsuarioResponse ]
+            - UsuarioResponse: { id, username, rol: {id, nombre}, persona: {id, nombres, apPaterno, apMaterno, email}, ultimoAcceso, estado, createdAt }
 
-- GET /api/materias
-  - Descripción: lista materias (filtrables por `carreraSede` en controlador si aplica).
-  - Respuesta 200 — ejemplo:
-    ```json
-    [
-      {
-        "id": 11,
-        "carreraSede": { "id": 3 },
-        "codigo": "MAT101",
-        "nombre": "Matemáticas I",
-        "semestre": 1,
-        "creditos": 4,
-        "estado": true
-      }
-    ]
-    ```
+        - /api/usuarios/{id} (GET)
+          - Roles: ROLE_ADMIN
+          - Respuesta 200: UsuarioResponse
 
-- GET /api/materias/{id}
-  - Descripción: obtener materia por ID (200) o 404.
+        - /api/usuarios (POST)
+          - Roles: ROLE_ADMIN
+          - Request: UsuarioCreateRequest { username, password, personaId, rolId }
+          - Respuesta 201: UsuarioResponse
 
-- GET /api/materias/carrera-sede/{carreraSedeId}
-  - Descripción: listar materias asociadas a una `carreraSede`.
+        - /api/usuarios/{id} (PUT)
+          - Roles: ROLE_ADMIN
+          - Request: UsuarioUpdateRequest
+          - Respuesta 200: UsuarioResponse
 
-## Grupos
+        - /api/usuarios/{id} (DELETE)
+          - Roles: ROLE_ADMIN
+          - Respuesta 204: vacío
 
-Nota de compatibilidad: los controladores usan un DTO `GrupoSimpleResponse` que contiene campos planos (ej. `materiaId`, `materiaNombre`, `docenteId`, `docenteNombres`) y, para mantener compatibilidad con templates frontend antiguos, también puede incluir objetos anidados mínimos `materia` y `docente` con los campos esenciales.
+        ## Personas (si aplica)
 
-- GET /api/grupos
-  - Descripción: lista los grupos activos.
-  - Respuesta 200 — ejemplo (DTO combinado):
-    ```json
-    [
-      {
-        "id": 21,
-        "materiaId": 11,
-        "materiaNombre": "Matemáticas I",
-        "materia": { "id": 11, "nombre": "Matemáticas I" },
-        "docenteId": 7,
-        "docenteNombres": "Ana G. ",
-        "docente": { "id": 7, "nombres": "Ana", "apPaterno": "García", "apMaterno": "Lopez" },
-        "periodoAcademicoId": 2,
-        "periodoAcademicoNombre": "2025-1",
-        "nombre": "A",
-        "cupoMaximo": 30,
-        "cupoActual": 25,
-        "estado": true,
-        "createdAt": "2025-02-01T08:00:00"
-      }
-    ]
-    ```
+        - /api/personas/{id} (GET)
+          - Roles: ROLE_ADMIN, ROLE_SECRETARIA (u otros según implementación)
+          - Respuesta 200: PersonaResponse { id, nombres, apPaterno, apMaterno, dni, email, telefono }
 
-- GET /api/grupos/{id}
-  - Descripción: obtener grupo por ID (200) o 404. Respuesta similar al ejemplo anterior.
+        ## Estudiantes
 
-- GET /api/grupos/periodo/{periodoAcademicoId}
-  - Descripción: listar grupos del periodo indicado.
+        - /api/estudiantes (GET)
+          - Roles: ROLE_ADMIN, ROLE_DOCENTE
+          - Respuesta 200: [ EstudianteResponse ]
+            - EstudianteResponse: { id, usuario: {id, username}, codigoEstudiante, fechaAdmision, estadoAcademico, estado, createdAt }
 
-## Dashboard
+        - /api/estudiantes/{id} (GET)
+          - Roles: ROLE_ADMIN, ROLE_DOCENTE, ROLE_ESTUDIANTE (propio)
+          - Ejemplo @PreAuthorize: hasRole('ADMIN') or hasAnyRole('DOCENTE') or (hasRole('ESTUDIANTE') and @securityService.isEstudianteOwner(authentication, #id))
+          - Respuesta 200: EstudianteResponse
 
-Los endpoints del dashboard devuelven DTOs compactos según rol.
+        - /api/estudiantes/codigo/{codigo} (GET)
+          - Roles: ROLE_ADMIN, ROLE_DOCENTE
+          - Respuesta 200: EstudianteResponse
 
-- GET /api/dashboard/student
-  - Descripción: datos y estadísticas para el estudiante autenticado.
-  - Respuesta 200 — ejemplo:
-    ```json
-    {
-      "usuarioId": 12,
-      "promedioGeneral": 85.75,
-      "totalInscripciones": 6,
-      "materiasInscritas": ["Matemáticas I", "Programación I"],
-      "ultimoAcceso": "2025-12-10T12:34:56"
-    }
-    ```
+        ## Docentes
 
-- GET /api/dashboard/teacher
-  - Descripción: estadísticas para el docente autenticado.
-  - Respuesta 200 — ejemplo:
-    ```json
-    { "docenteId": 7, "usuarioId": 21, "materiasQueImparte": ["Programación I"], "totalGrupos": 3 }
-    ```
+        - /api/docentes (GET)
+          - Roles: ROLE_ADMIN
+          - Respuesta 200: [ DocenteResponse ]
+            - DocenteResponse: { id, usuario: {id, username}, nombres, apPaterno, apMaterno, especialidad, estado }
 
-- GET /api/dashboard/general
-  - Descripción: estadísticas generales (recomendado: rol `ADMIN`).
-  - Respuesta 200 — ejemplo:
-    ```json
-    { "estudiantesActivos": 432, "docentesActivos": 28, "usuariosTotal": 700, "materiasActivas": 120, "gruposActivos": 85 }
-    ```
+        - /api/docentes/{id} (GET)
+          - Roles: ROLE_ADMIN, ROLE_DIRECTOR, ROLE_DOCENTE (propio)
+          - Respuesta 200: DocenteResponse
 
-## Errores comunes
+        ## Carreras / Sedes / CarreraSede
 
-- 400 Bad Request: payload inválido o validación fallida. Body típico: texto con mensaje de error o un JSON con detalles de validación.
-- 401 Unauthorized: token faltante o inválido.
-- 403 Forbidden: usuario autenticado pero sin permisos (roles) necesarios.
-- 404 Not Found: recurso inexistente.
+        - /api/carreras (GET)
+          - Roles: autenticados
+          - Respuesta 200: [ CarreraResponse ]
 
-## Notas de implementación y despliegue
+        - /api/carreras/{id} (GET)
+          - Roles: autenticados
+          - Respuesta 200: CarreraResponse
 
-- Si ves 5xx relacionados con serialización, revisar que los controladores devuelvan DTOs en lugar de entidades JPA completas.
-- Para reducir ruido en logs de producción (por ejemplo, límites en Railway), ajustar `logging.level` a INFO o WARN para `org.springframework` y `com.etc.backend`.
+        - /api/carrera-sede/{id} (GET)
+          - Roles: autenticados
+          - Respuesta 200: CarreraSedeResponse { id, carreraId, sedeId, codigo, nombre }
 
-Si quieres que formatee este documento para exportarlo (por ejemplo versión HTML o incluir ejemplos curl para cada endpoint), lo hago enseguida.
+        ## Materias
 
-OpenAPI specification
---------------------
+        - /api/materias (GET)
+          - Roles: autenticados
+          - Query: opcional `carreraSedeId`
+          - Respuesta 200: [ MateriaResponse ]
+            - MateriaResponse: { id, carreraSede: {id}, codigo, nombre, semestre, creditos, estado }
 
-He añadido una especificación OpenAPI 3.0 en `docs/openapi.yaml` que cubre los endpoints principales y las reglas de acceso por rol. Puedes cargar `docs/openapi.yaml` en Swagger UI o cualquier herramienta compatible (p. ej. Redoc) para navegar y exportar la documentación.
+        - /api/materias/{id} (GET)
+          - Roles: autenticados
+          - Respuesta 200: MateriaResponse
 
-## Códigos de error comunes
+        - /api/materias/carrera-sede/{carreraSedeId} (GET)
+          - Roles: autenticados
+          - Respuesta 200: [ MateriaResponse ]
 
-- 400 Bad Request: ejemplo de cuerpo (texto): "Error: <mensaje>"
-- 404 Not Found: no se devuelve JSON por defecto; endpoint suele responder con 404 status y body vacío.
-- 401 / 403: pueden devolver JSON de error o body vacío según la configuración de Spring Security.
+        ## Grupos
 
----
+        - /api/grupos (GET)
+          - Roles: autenticados
+          - Respuesta 200: [ GrupoSimpleResponse ]
+            - GrupoSimpleResponse: { id, materiaId, materiaNombre, materia: {id,nombre}?, docenteId, docenteNombres, docente: {id,nombres,apPaterno,apMaterno}?, periodoAcademicoId, periodoAcademicoNombre, nombre, cupoMaximo, cupoActual, estado, createdAt }
 
-Estado: ejemplos JSON guardados en este archivo y OpenAPI generado en `docs/openapi.yaml`.
+        - /api/grupos/{id} (GET)
+          - Roles: autenticados
+          - Respuesta 200: GrupoSimpleResponse
 
-## Endpoints adicionales implementados (scaffolding)
+        - /api/grupos/periodo/{periodoAcademicoId} (GET)
+          - Roles: autenticados
+          - Respuesta 200: [ GrupoSimpleResponse ]
 
-He añadido controladores mínimos para operaciones administrativas y académicas. A continuación se listan los endpoints recién implementados y los roles que los pueden usar.
+        - /api/grupos (POST)
+          - Roles: ROLE_ADMIN, ROLE_SECRETARIA
+          - Request: GrupoRequest { materiaId, docenteId, periodoAcademicoId, nombre, cupoMaximo }
+          - Respuesta 201: GrupoSimpleResponse
 
-Inscripciones
-- POST /api/inscripciones
-  - Descripción: Crear una inscripción. Un estudiante autenticado puede inscribirse a un grupo propio; el personal administrativo puede crear inscripciones para cualquier estudiante.
-  - Request: { estudianteId, grupoId, matriculaId }
-  - Roles: ROLE_ESTUDIANTE (para inscribirse a sí mismo), ROLE_SECRETARIA, ROLE_ADMIN
-  - Respuesta: 201 Created con objeto Inscripcion
-- GET /api/inscripciones
-  - Descripción: Listar inscripciones
-  - Roles: ROLE_ADMIN, ROLE_SECRETARIA, ROLE_DIRECTOR
+        - /api/grupos/{id} (PUT/DELETE)
+          - Roles: ROLE_ADMIN
+          - Respuesta: 200/204 según acción
 
-Matriculas
-- POST /api/matriculas
-  - Descripción: Crear una matrícula (registro administrativo que asocia estudiante, carreraSede y periodo).
-  - Request: { estudianteId, carreraSedeId, periodoAcademicoId, semestreCursando, montoMatricula }
-  - Roles: ROLE_ADMIN, ROLE_SECRETARIA
-  - Respuesta: 201 Created con objeto Matricula
-- GET /api/matriculas/{id}
-  - Descripción: Obtener matrícula por id
-  - Roles: autenticados (según uso) / administrativos
+        ## Inscripciones
 
-Calificaciones
-- POST /api/calificaciones
-  - Descripción: Registrar una calificación para una inscripción y tipo de evaluación.
-  - Request: { inscripcionId, tipoEvaluacionId, nota, fechaEvaluacion }
-  - Roles: ROLE_DOCENTE (preferentemente limitado a sus grupos) y ROLE_ADMIN
-  - Respuesta: 201 Created con objeto Calificacion
+        - /api/inscripciones (POST)
+          - Roles / validación (@PreAuthorize):
+            - ADMIN y SECRETARIA pueden crear para cualquier estudiante.
+            - ESTUDIANTE puede crear sólo para sí mismo: @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETARIA') or (hasRole('ESTUDIANTE') and @securityService.isEstudianteOwner(authentication, #req.estudianteId))")
+          - Request: InscripcionRequest { estudianteId, grupoId, matriculaId }
+          - Respuesta 201: InscripcionResponse { id, estudianteId, grupoId, matriculaId, fechaInscripcion, tipoInscripcion, estado }
 
-Asistencias
-- POST /api/asistencias
-  - Descripción: Registrar asistencia para una sesión (horario) y una inscripción.
-  - Request: { inscripcionId, horarioId, fecha, estado, minutosTardanza, observaciones }
-  - Roles: ROLE_DOCENTE, ROLE_ADMIN
-  - Respuesta: 201 Created con objeto Asistencia
+        - /api/inscripciones (GET)
+          - Roles: ROLE_ADMIN, ROLE_SECRETARIA, ROLE_DIRECTOR
+          - Respuesta 200: [ InscripcionResponse ]
 
-Aulas
-- GET /api/aulas
-  - Descripción: Listar aulas
-  - Roles: autenticados
-- POST /api/aulas
-  - Descripción: Crear aula
-  - Request: { sedeId, nombre, capacidad, tipo }
-  - Roles: ROLE_ADMIN, ROLE_SECRETARIA
+        - /api/inscripciones/{id} (GET)
+          - Roles / validación (@PreAuthorize):
+            - ADMIN, SECRETARIA, DIRECTOR pueden ver cualquiera.
+            - DOCENTE puede ver sólo si está vinculado: @securityService.isDocenteOfInscripcion(authentication, #id)
+            - ESTUDIANTE puede ver sólo su propia inscripción: @securityService.isInscripcionOwnedByStudent(authentication, #id)
+          - Respuesta 200: InscripcionResponse
 
-Horarios
-- GET /api/horarios/grupo/{grupoId}
-  - Descripción: Obtener horarios de un grupo
-  - Roles: autenticados
-- POST /api/horarios
-  - Descripción: Crear horario para un grupo y aula
-  - Request: { grupoId, aulaId, diaSemana, horaInicio, horaFin, tipo }
-  - Roles: ROLE_ADMIN, ROLE_SECRETARIA, ROLE_DIRECTOR
+        - /api/inscripciones/{id} (PUT)
+          - Roles: ROLE_ADMIN, ROLE_SECRETARIA
+          - Respuesta 200: InscripcionResponse (actualizada)
 
-Notas sobre seguridad y buenas prácticas
-- Los controladores implementados actualmente devuelven entidades JPA directamente para agilizar el scaffolding; recomiendo transformar estas respuestas a DTOs de respuesta antes de exponer en producción para evitar LazyInitializationException y sobreexposición de datos.
-- Para restricciones finas (p. ej. permitir que un docente sólo registre calificaciones para sus grupos) añade comprobaciones a nivel de servicio: por ejemplo un bean `SecurityService` con métodos `isDocenteDelGrupo(authentication, grupoId)` y usarlo en `@PreAuthorize`.
-- El mapeo de roles desde la base de datos a Spring se realiza en `UserPrincipal.create(...)` y normaliza nombres como "Administrador" -> `ROLE_ADMIN`. Revisa ese método si tus nombres en BD son distintos.
+        - /api/inscripciones/{id} (DELETE)
+          - Roles: ROLE_ADMIN
+          - Respuesta 204: vacío
+
+        ## Matrículas
+
+        - /api/matriculas (POST)
+          - Roles: ROLE_ADMIN, ROLE_SECRETARIA
+          - Request: MatriculaRequest { estudianteId, carreraSedeId, periodoAcademicoId, semestreCursando, montoMatricula }
+          - Respuesta 201: MatriculaResponse { id, estudianteId, carreraSedeId, periodoAcademicoId, semestreCursando, monto }
+
+        - /api/matriculas/{id} (GET)
+          - Roles: autenticados (lectura dependiendo del uso) / administradores
+          - Respuesta 200: MatriculaResponse
+
+        - /api/matriculas/{id} (PUT/DELETE)
+          - Roles: ROLE_ADMIN, ROLE_SECRETARIA (PUT), ROLE_ADMIN (DELETE)
+
+        ## Calificaciones
+
+        - /api/calificaciones (POST)
+          - Roles / validación: ADMIN o (DOCENTE y pertenece al grupo/inscripción)
+            - Ejemplo @PreAuthorize: @PreAuthorize("hasRole('ADMIN') or (hasRole('DOCENTE') and @securityService.isDocenteOfInscripcion(authentication, #req.inscripcionId))")
+          - Request: CalificacionRequest { inscripcionId, tipoEvaluacionId, nota, fechaEvaluacion }
+          - Respuesta 201: CalificacionResponse { id, inscripcionId, tipoEvaluacionId, nota, fechaEvaluacion, creadoPor }
+
+        - /api/calificaciones/{id} (PUT)
+          - Roles: ADMIN o (DOCENTE y es docente de la calificación) — @securityService.isDocenteOfCalificacion(authentication, #id)
+          - Respuesta 200: CalificacionResponse
+
+        - /api/calificaciones/{id} (DELETE)
+          - Roles: ROLE_ADMIN
+          - Respuesta 204: vacío
+
+        ## Asistencias
+
+        - /api/asistencias (POST)
+          - Roles / validación: ADMIN o (DOCENTE y pertenece al grupo correspondiente)
+            - Ejemplo @PreAuthorize: @PreAuthorize("hasRole('ADMIN') or (hasRole('DOCENTE') and @securityService.isDocenteOfAsistencia(authentication, #req.grupoId))")
+          - Request: AsistenciaRequest { inscripcionId, horarioId, fecha, estado, minutosTardanza, observaciones }
+          - Respuesta 201: AsistenciaResponse { id, inscripcionId, horarioId, fecha, estado, minutosTardanza, observaciones }
+
+        - /api/asistencias/{id} (PUT)
+          - Roles: ADMIN o DOCENTE (propio) — validar con isDocenteOfAsistencia(authentication, #id)
+          - Respuesta 200: AsistenciaResponse
+
+        ## Aulas
+
+        - /api/aulas (GET)
+          - Roles: autenticados
+          - Respuesta 200: [ AulaResponse ] { id, sedeId, nombre, capacidad, tipo, estado }
+
+        - /api/aulas (POST)
+          - Roles: ROLE_ADMIN, ROLE_SECRETARIA
+          - Request: AulaRequest { sedeId, nombre, capacidad, tipo }
+          - Respuesta 201: AulaResponse
+
+        ## Horarios
+
+        - /api/horarios/grupo/{grupoId} (GET)
+          - Roles: autenticados
+          - Respuesta 200: [ HorarioResponse ] { id, grupoId, aulaId, diaSemana, horaInicio, horaFin, tipo }
+
+        - /api/horarios (POST)
+          - Roles: ROLE_ADMIN, ROLE_SECRETARIA, ROLE_DIRECTOR
+          - Request: HorarioRequest { grupoId, aulaId, diaSemana, horaInicio, horaFin, tipo }
+          - Respuesta 201: HorarioResponse
+
+        ## Dashboard
+
+        - /api/dashboard/student (GET)
+          - Roles: ROLE_ESTUDIANTE
+          - Respuesta 200: DashboardStudentResponse { usuarioId, promedioGeneral, totalInscripciones, materiasInscritas, ultimoAcceso }
+
+        - /api/dashboard/teacher (GET)
+          - Roles: ROLE_DOCENTE
+          - Respuesta 200: DashboardTeacherResponse { docenteId, usuarioId, materiasQueImparte, totalGrupos }
+
+        - /api/dashboard/general (GET)
+          - Roles: ROLE_ADMIN (recomendado)
+          - Respuesta 200: DashboardGeneralResponse { estudiantesActivos, docentesActivos, usuariosTotal, materiasActivas, gruposActivos }
+
+        ## Códigos de error y comportamiento
+
+        - 200 OK: petición exitosa, cuerpo JSON con DTO indicado.
+        - 201 Created: recurso creado, Location header con la ruta del nuevo recurso y cuerpo con el DTO creado.
+        - 204 No Content: operación exitosa sin cuerpo (DELETE, etc.).
+        - 400 Bad Request: payload inválido o validación fallida (cuerpo con mensaje/errores).
+        - 401 Unauthorized: token faltante o inválido.
+        - 403 Forbidden: usuario autenticado pero sin permiso para la acción (se usan 403 para AccessDenied ahora).
+        - 404 Not Found: recurso inexistente.
+
+       
+
+        Archivo actualizado: `docs/ENDPOINTS.md`.
 

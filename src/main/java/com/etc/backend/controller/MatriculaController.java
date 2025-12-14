@@ -34,8 +34,19 @@ public class MatriculaController {
     private PeriodoAcademicoRepository periodoAcademicoRepository;
 
     @GetMapping("/{id}")
-    public ResponseEntity<Matricula> getById(@PathVariable Integer id) {
-        return matriculaRepository.findById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<com.etc.backend.dto.response.MatriculaResponse> getById(@PathVariable Integer id) {
+        return matriculaRepository.findById(id).map(m -> {
+            com.etc.backend.dto.response.MatriculaResponse r = new com.etc.backend.dto.response.MatriculaResponse();
+            r.setId(m.getId());
+            try { r.setEstudianteId(m.getEstudiante() != null ? m.getEstudiante().getId() : null); } catch (Exception ignored) {}
+            try { r.setCarreraSedeId(m.getCarreraSede() != null ? m.getCarreraSede().getId() : null); } catch (Exception ignored) {}
+            try { r.setPeriodoAcademicoId(m.getPeriodoAcademico() != null ? m.getPeriodoAcademico().getId() : null); } catch (Exception ignored) {}
+            r.setFechaMatricula(m.getFechaMatricula());
+            r.setSemestreCursando(m.getSemestreCursando());
+            r.setMontoMatricula(m.getMontoMatricula());
+            r.setEstado(m.getEstado() != null ? m.getEstado().name() : null);
+            return ResponseEntity.ok(r);
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
@@ -58,6 +69,43 @@ public class MatriculaController {
         m.setMontoMatricula(req.getMontoMatricula());
 
         Matricula saved = matriculaRepository.save(m);
-        return ResponseEntity.created(URI.create("/api/matriculas/" + saved.getId())).body(saved);
+        com.etc.backend.dto.response.MatriculaResponse r = new com.etc.backend.dto.response.MatriculaResponse();
+        r.setId(saved.getId());
+        try { r.setEstudianteId(saved.getEstudiante() != null ? saved.getEstudiante().getId() : null); } catch (Exception ignored) {}
+        try { r.setCarreraSedeId(saved.getCarreraSede() != null ? saved.getCarreraSede().getId() : null); } catch (Exception ignored) {}
+        try { r.setPeriodoAcademicoId(saved.getPeriodoAcademico() != null ? saved.getPeriodoAcademico().getId() : null); } catch (Exception ignored) {}
+        r.setFechaMatricula(saved.getFechaMatricula());
+        r.setSemestreCursando(saved.getSemestreCursando());
+        r.setMontoMatricula(saved.getMontoMatricula());
+        r.setEstado(saved.getEstado() != null ? saved.getEstado().name() : null);
+        return ResponseEntity.created(URI.create("/api/matriculas/" + saved.getId())).body(r);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','SECRETARIA')")
+    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody MatriculaRequest req) {
+        return matriculaRepository.findById(id).map(existing -> {
+            // minimal update allowed
+            Matricula saved = matriculaRepository.save(existing);
+            com.etc.backend.dto.response.MatriculaResponse r = new com.etc.backend.dto.response.MatriculaResponse();
+            r.setId(saved.getId());
+            try { r.setEstudianteId(saved.getEstudiante() != null ? saved.getEstudiante().getId() : null); } catch (Exception ignored) {}
+            try { r.setCarreraSedeId(saved.getCarreraSede() != null ? saved.getCarreraSede().getId() : null); } catch (Exception ignored) {}
+            try { r.setPeriodoAcademicoId(saved.getPeriodoAcademico() != null ? saved.getPeriodoAcademico().getId() : null); } catch (Exception ignored) {}
+            r.setFechaMatricula(saved.getFechaMatricula());
+            r.setSemestreCursando(saved.getSemestreCursando());
+            r.setMontoMatricula(saved.getMontoMatricula());
+            r.setEstado(saved.getEstado() != null ? saved.getEstado().name() : null);
+            return ResponseEntity.ok(r);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> delete(@PathVariable Integer id) {
+        return matriculaRepository.findById(id).map(m -> {
+            matriculaRepository.delete(m);
+            return ResponseEntity.noContent().build();
+        }).orElse(ResponseEntity.notFound().build());
     }
 }

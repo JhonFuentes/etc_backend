@@ -30,8 +30,20 @@ public class HorarioController {
     private AulaRepository aulaRepository;
 
     @GetMapping("/grupo/{grupoId}")
-    public ResponseEntity<List<Horario>> getByGrupo(@PathVariable Integer grupoId) {
-        return ResponseEntity.ok(horarioRepository.findByGrupoId(grupoId));
+    public ResponseEntity<List<com.etc.backend.dto.response.HorarioResponse>> getByGrupo(@PathVariable Integer grupoId) {
+        List<com.etc.backend.entity.Horario> list = horarioRepository.findByGrupoId(grupoId);
+        List<com.etc.backend.dto.response.HorarioResponse> dto = list.stream().map(h -> {
+            com.etc.backend.dto.response.HorarioResponse r = new com.etc.backend.dto.response.HorarioResponse();
+            r.setId(h.getId());
+            try { r.setGrupoId(h.getGrupo() != null ? h.getGrupo().getId() : null); } catch (Exception ignored) {}
+            try { r.setAulaId(h.getAula() != null ? h.getAula().getId() : null); } catch (Exception ignored) {}
+            r.setDiaSemana(h.getDiaSemana());
+            r.setHoraInicio(h.getHoraInicio());
+            r.setHoraFin(h.getHoraFin());
+            r.setTipo(h.getTipo() != null ? h.getTipo().name() : null);
+            return r;
+        }).toList();
+        return ResponseEntity.ok(dto);
     }
 
     @PostMapping

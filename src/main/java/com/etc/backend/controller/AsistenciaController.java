@@ -1,6 +1,7 @@
 package com.etc.backend.controller;
 
 import com.etc.backend.dto.request.AsistenciaRequest;
+import com.etc.backend.dto.response.AsistenciaResponse;
 import com.etc.backend.entity.Asistencia;
 import com.etc.backend.entity.Inscripcion;
 import com.etc.backend.entity.Horario;
@@ -36,7 +37,7 @@ public class AsistenciaController {
     private UsuarioRepository usuarioRepository;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DOCENTE','ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('DOCENTE') and @securityService.isDocenteOfAsistencia(authentication, #req.grupoId))")
     public ResponseEntity<?> create(@RequestBody AsistenciaRequest req, Authentication authentication) {
         Inscripcion ins = inscripcionRepository.findById(req.getInscripcionId()).orElse(null);
         if (ins == null) return ResponseEntity.badRequest().body("Inscripcion inválida");
@@ -59,6 +60,42 @@ public class AsistenciaController {
         }
 
         Asistencia saved = asistenciaRepository.save(a);
-        return ResponseEntity.created(URI.create("/api/asistencias/" + saved.getId())).body(saved);
+        AsistenciaResponse r = new AsistenciaResponse();
+        r.setId(saved.getId());
+        try { r.setInscripcionId(saved.getInscripcion() != null ? saved.getInscripcion().getId() : null); } catch (Exception ignored) {}
+        try { r.setHorarioId(saved.getHorario() != null ? saved.getHorario().getId() : null); } catch (Exception ignored) {}
+        r.setFecha(saved.getFecha());
+        r.setEstado(saved.getEstado() != null ? saved.getEstado().name() : null);
+        r.setMinutosTardanza(saved.getMinutosTardanza());
+        return ResponseEntity.created(URI.create("/api/asistencias/" + saved.getId())).body(r);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('DOCENTE') and @securityService.isDocenteOfAsistencia(authentication, #id))")
+    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody AsistenciaRequest req) {
+        return asistenciaRepository.findById(id).map(existing -> {
+            existing.setFecha(req.getFecha());
+            try { existing.setEstado(Asistencia.EstadoAsistencia.valueOf(req.getEstado())); } catch (Exception ignored) {}
+            existing.setMinutosTardanza(req.getMinutosTardanza());
+            existing.setObservaciones(req.getObservaciones());
+            Asistencia saved = asistenciaRepository.save(existing);
+            AsistenciaResponse r = new AsistenciaResponse();
+            r.setId(saved.getId());
+            try { r.setInscripcionId(saved.getInscripcion() != null ? saved.getInscripcion().getId() : null); } catch (Exception ignored) {}
+            try { r.setHorarioId(saved.getHorario() != null ? saved.getHorario().getId() : null); } catch (Exception ignored) {}
+            r.setFecha(saved.getFecha());
+            r.setEstado(saved.getEstado() != null ? saved.getEstado().name() : null);
+            r.setMinutosTardanza(saved.getMinutosTardanza());
+            return ResponseEntity.ok(r);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> delete(@PathVariable Integer id) {
+        return asistenciaRepository.findById(id).map(a -> {
+            asistenciaRepository.delete(a);
+            return ResponseEntity.noContent().build();
+        }).orElse(ResponseEntity.notFound().build());
     }
 }

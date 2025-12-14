@@ -1,6 +1,7 @@
 package com.etc.backend.controller;
 
 import com.etc.backend.dto.request.CalificacionRequest;
+import com.etc.backend.dto.response.CalificacionResponse;
 import com.etc.backend.entity.Calificacion;
 import com.etc.backend.entity.Inscripcion;
 import com.etc.backend.entity.TipoEvaluacion;
@@ -36,7 +37,7 @@ public class CalificacionController {
     private UsuarioRepository usuarioRepository;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DOCENTE','ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('DOCENTE') and @securityService.isDocenteOfInscripcion(authentication, #req.inscripcionId))")
     public ResponseEntity<?> create(@RequestBody CalificacionRequest req, Authentication authentication) {
         Inscripcion ins = inscripcionRepository.findById(req.getInscripcionId()).orElse(null);
         if (ins == null) return ResponseEntity.badRequest().body("Inscripcion inválida");
@@ -56,6 +57,38 @@ public class CalificacionController {
         }
 
         Calificacion saved = calificacionRepository.save(c);
-        return ResponseEntity.created(URI.create("/api/calificaciones/" + saved.getId())).body(saved);
+        CalificacionResponse r = new CalificacionResponse();
+        r.setId(saved.getId());
+        try { r.setInscripcionId(saved.getInscripcion() != null ? saved.getInscripcion().getId() : null); } catch (Exception ignored) {}
+        try { r.setTipoEvaluacionId(saved.getTipoEvaluacion() != null ? saved.getTipoEvaluacion().getId() : null); } catch (Exception ignored) {}
+        r.setNota(saved.getNota());
+        r.setFechaEvaluacion(saved.getFechaEvaluacion());
+        return ResponseEntity.created(URI.create("/api/calificaciones/" + saved.getId())).body(r);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('DOCENTE') and @securityService.isDocenteOfCalificacion(authentication, #id))")
+    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody CalificacionRequest req) {
+        return calificacionRepository.findById(id).map(existing -> {
+            existing.setNota(req.getNota());
+            existing.setFechaEvaluacion(req.getFechaEvaluacion());
+            Calificacion saved = calificacionRepository.save(existing);
+            CalificacionResponse r = new CalificacionResponse();
+            r.setId(saved.getId());
+            try { r.setInscripcionId(saved.getInscripcion() != null ? saved.getInscripcion().getId() : null); } catch (Exception ignored) {}
+            try { r.setTipoEvaluacionId(saved.getTipoEvaluacion() != null ? saved.getTipoEvaluacion().getId() : null); } catch (Exception ignored) {}
+            r.setNota(saved.getNota());
+            r.setFechaEvaluacion(saved.getFechaEvaluacion());
+            return ResponseEntity.ok(r);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> delete(@PathVariable Integer id) {
+        return calificacionRepository.findById(id).map(c -> {
+            calificacionRepository.delete(c);
+            return ResponseEntity.noContent().build();
+        }).orElse(ResponseEntity.notFound().build());
     }
 }
