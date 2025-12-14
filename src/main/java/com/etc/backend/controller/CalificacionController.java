@@ -91,4 +91,54 @@ public class CalificacionController {
             return ResponseEntity.noContent().build();
         }).orElse(ResponseEntity.notFound().build());
     }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','DOCENTE')")
+    public ResponseEntity<?> list(
+            @RequestParam(required = false) Integer inscripcionId,
+            @RequestParam(required = false) Integer tipoEvaluacionId,
+            @RequestParam(required = false) Integer docenteId,
+            @RequestParam(required = false) Double minNota,
+            @RequestParam(required = false) Double maxNota,
+            @RequestParam(required = false) String desdeFecha,
+            @RequestParam(required = false) String hastaFecha
+    ) {
+        java.util.List<Calificacion> all = calificacionRepository.findAll();
+        java.util.List<Calificacion> filtered = all.stream().filter(c -> {
+            if (inscripcionId != null && (c.getInscripcion() == null || !inscripcionId.equals(c.getInscripcion().getId()))) return false;
+            if (tipoEvaluacionId != null && (c.getTipoEvaluacion() == null || !tipoEvaluacionId.equals(c.getTipoEvaluacion().getId()))) return false;
+            if (docenteId != null) {
+                try { if (c.getInscripcion() == null || c.getInscripcion().getGrupo() == null || c.getInscripcion().getGrupo().getDocente() == null || !docenteId.equals(c.getInscripcion().getGrupo().getDocente().getId())) return false; } catch (Exception ignored) {}
+            }
+            if (minNota != null) {
+                try {
+                    java.math.BigDecimal bdMin = java.math.BigDecimal.valueOf(minNota);
+                    if (c.getNota() == null || c.getNota().compareTo(bdMin) < 0) return false;
+                } catch (Exception ignored) {}
+            }
+            if (maxNota != null) {
+                try {
+                    java.math.BigDecimal bdMax = java.math.BigDecimal.valueOf(maxNota);
+                    if (c.getNota() == null || c.getNota().compareTo(bdMax) > 0) return false;
+                } catch (Exception ignored) {}
+            }
+            if (desdeFecha != null) {
+                try { if (c.getFechaEvaluacion() == null || c.getFechaEvaluacion().isBefore(java.time.LocalDate.parse(desdeFecha))) return false; } catch (Exception ignored) {}
+            }
+            if (hastaFecha != null) {
+                try { if (c.getFechaEvaluacion() == null || c.getFechaEvaluacion().isAfter(java.time.LocalDate.parse(hastaFecha))) return false; } catch (Exception ignored) {}
+            }
+            return true;
+        }).toList();
+        java.util.List<CalificacionResponse> dto = filtered.stream().map(saved -> {
+            CalificacionResponse r = new CalificacionResponse();
+            r.setId(saved.getId());
+            try { r.setInscripcionId(saved.getInscripcion() != null ? saved.getInscripcion().getId() : null); } catch (Exception ignored) {}
+            try { r.setTipoEvaluacionId(saved.getTipoEvaluacion() != null ? saved.getTipoEvaluacion().getId() : null); } catch (Exception ignored) {}
+            r.setNota(saved.getNota());
+            r.setFechaEvaluacion(saved.getFechaEvaluacion());
+            return r;
+        }).toList();
+        return ResponseEntity.ok(dto);
+    }
 }

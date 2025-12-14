@@ -63,6 +63,15 @@ public class HorarioController {
         try { h.setTipo(Horario.TipoHorario.valueOf(req.getTipo())); } catch (Exception ignored) {}
 
         Horario saved = horarioRepository.save(h);
-        return ResponseEntity.created(URI.create("/api/horarios/" + saved.getId())).body(saved);
+        com.etc.backend.dto.response.HorarioResponse r = new com.etc.backend.dto.response.HorarioResponse();
+        r.setId(saved.getId());
+        try { r.setGrupoId(saved.getGrupo() != null ? saved.getGrupo().getId() : null); } catch (Exception ignored) {}
+        try { r.setAulaId(saved.getAula() != null ? saved.getAula().getId() : null); } catch (Exception ignored) {}
+        r.setDiaSemana(saved.getDiaSemana());
+        r.setHoraInicio(saved.getHoraInicio());
+        r.setHoraFin(saved.getHoraFin());
+        r.setTipo(saved.getTipo() != null ? saved.getTipo().name() : null);
+
+        return ResponseEntity.created(URI.create("/api/horarios/" + saved.getId())).body(r);
     }
 }

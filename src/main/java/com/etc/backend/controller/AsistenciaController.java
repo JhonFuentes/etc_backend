@@ -98,4 +98,45 @@ public class AsistenciaController {
             return ResponseEntity.noContent().build();
         }).orElse(ResponseEntity.notFound().build());
     }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','DOCENTE')")
+    public ResponseEntity<?> list(
+            @RequestParam(required = false) Integer grupoId,
+            @RequestParam(required = false) Integer inscripcionId,
+            @RequestParam(required = false) Integer docenteId,
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false) String desdeFecha,
+            @RequestParam(required = false) String hastaFecha
+    ) {
+        java.util.List<Asistencia> all = asistenciaRepository.findAll();
+        java.util.List<Asistencia> filtered = all.stream().filter(a -> {
+            if (inscripcionId != null && (a.getInscripcion() == null || !inscripcionId.equals(a.getInscripcion().getId()))) return false;
+            if (grupoId != null) {
+                try { if (a.getInscripcion() == null || a.getInscripcion().getGrupo() == null || !grupoId.equals(a.getInscripcion().getGrupo().getId())) return false; } catch (Exception ignored) {}
+            }
+            if (docenteId != null) {
+                try { if (a.getInscripcion() == null || a.getInscripcion().getGrupo() == null || a.getInscripcion().getGrupo().getDocente() == null || !docenteId.equals(a.getInscripcion().getGrupo().getDocente().getId())) return false; } catch (Exception ignored) {}
+            }
+            if (estado != null && (a.getEstado() == null || !a.getEstado().name().equalsIgnoreCase(estado))) return false;
+            if (desdeFecha != null) {
+                try { if (a.getFecha() == null || a.getFecha().isBefore(java.time.LocalDate.parse(desdeFecha))) return false; } catch (Exception ignored) {}
+            }
+            if (hastaFecha != null) {
+                try { if (a.getFecha() == null || a.getFecha().isAfter(java.time.LocalDate.parse(hastaFecha))) return false; } catch (Exception ignored) {}
+            }
+            return true;
+        }).toList();
+        java.util.List<AsistenciaResponse> dto = filtered.stream().map(saved -> {
+            AsistenciaResponse r = new AsistenciaResponse();
+            r.setId(saved.getId());
+            try { r.setInscripcionId(saved.getInscripcion() != null ? saved.getInscripcion().getId() : null); } catch (Exception ignored) {}
+            try { r.setHorarioId(saved.getHorario() != null ? saved.getHorario().getId() : null); } catch (Exception ignored) {}
+            r.setFecha(saved.getFecha());
+            r.setEstado(saved.getEstado() != null ? saved.getEstado().name() : null);
+            r.setMinutosTardanza(saved.getMinutosTardanza());
+            return r;
+        }).toList();
+        return ResponseEntity.ok(dto);
+    }
 }

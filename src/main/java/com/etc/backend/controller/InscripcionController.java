@@ -39,9 +39,31 @@ public class InscripcionController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','SECRETARIA','DIRECTOR')")
-    public ResponseEntity<List<InscripcionResponse>> listAll() {
+    public ResponseEntity<List<InscripcionResponse>> listAll(
+            @RequestParam(required = false) Integer estudianteId,
+            @RequestParam(required = false) Integer grupoId,
+            @RequestParam(required = false) Integer matriculaId,
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false) String tipoInscripcion,
+            @RequestParam(required = false) String desdeFecha,
+            @RequestParam(required = false) String hastaFecha
+    ) {
         List<Inscripcion> list = inscripcionRepository.findAll();
-        List<InscripcionResponse> dto = list.stream().map(this::toDto).toList();
+        List<Inscripcion> filtered = list.stream().filter(i -> {
+            if (estudianteId != null && (i.getEstudiante() == null || !estudianteId.equals(i.getEstudiante().getId()))) return false;
+            if (grupoId != null && (i.getGrupo() == null || !grupoId.equals(i.getGrupo().getId()))) return false;
+            if (matriculaId != null && (i.getMatricula() == null || !matriculaId.equals(i.getMatricula().getId()))) return false;
+            if (estado != null && (i.getEstado() == null || !i.getEstado().name().equalsIgnoreCase(estado))) return false;
+            if (tipoInscripcion != null && (i.getTipoInscripcion() == null || !i.getTipoInscripcion().name().equalsIgnoreCase(tipoInscripcion))) return false;
+            if (desdeFecha != null) {
+                try { if (i.getFechaInscripcion() == null || i.getFechaInscripcion().isBefore(java.time.LocalDate.parse(desdeFecha))) return false; } catch (Exception ignored) {}
+            }
+            if (hastaFecha != null) {
+                try { if (i.getFechaInscripcion() == null || i.getFechaInscripcion().isAfter(java.time.LocalDate.parse(hastaFecha))) return false; } catch (Exception ignored) {}
+            }
+            return true;
+        }).toList();
+        List<InscripcionResponse> dto = filtered.stream().map(this::toDto).toList();
         return ResponseEntity.ok(dto);
     }
 

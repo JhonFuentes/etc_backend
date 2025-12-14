@@ -66,6 +66,27 @@ public class UsuarioController {
         return ResponseEntity.ok(dto);
     }
 
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UsuarioSimpleResponse>> searchUsuarios(
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) Integer rolId,
+            @RequestParam(required = false) Integer personaId,
+            @RequestParam(required = false) Boolean estado
+    ) {
+        List<Usuario> list = usuarioRepository.findAll();
+        List<UsuarioSimpleResponse> filtered = list.stream().filter(u -> {
+            if (username != null && (u.getUsername() == null || !u.getUsername().toLowerCase().contains(username.toLowerCase()))) return false;
+            if (email != null && (u.getPersona() == null || u.getPersona().getEmail() == null || !u.getPersona().getEmail().toLowerCase().contains(email.toLowerCase()))) return false;
+            if (rolId != null && (u.getRol() == null || !rolId.equals(u.getRol().getId()))) return false;
+            if (personaId != null && (u.getPersona() == null || !personaId.equals(u.getPersona().getId()))) return false;
+            if (estado != null && (u.getEstado() == null || !estado.equals(u.getEstado()))) return false;
+            return true;
+        }).map(this::toDto).collect(Collectors.toList());
+        return ResponseEntity.ok(filtered);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<UsuarioSimpleResponse> getUsuarioById(@PathVariable Integer id) {
         return usuarioRepository.findById(id)

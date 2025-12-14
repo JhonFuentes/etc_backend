@@ -239,6 +239,97 @@ Si un usuario con rol `ADMIN` recibe un error con mensaje "Acceso denegado":
           - Roles: ROLE_ADMIN
           - Respuesta 204: vacío
 
+        ## Búsqueda y filtros (personas, usuarios, inscripciones y más)
+
+        Nota: muchos listados tienen soporte de paginación (`page`, `size`) y orden (`sort=campo,asc|desc`). Las fechas deben enviarse en ISO 8601 o YYYY-MM-DD según el endpoint (se indica cuando aplica). A continuación se listan endpoints de búsqueda y parámetros recomendados.
+
+        - /api/personas/search (GET)
+          - Descripción: Búsqueda avanzada de personas por nombre, apellido o documento (CI).
+          - Roles: ROLE_ADMIN, ROLE_SECRETARIA, ROLE_DOCENTE (lectura limitada según políticas internas)
+          - Query parameters (opcionales):
+            - `q` — texto libre que busca en `nombres`, `apPaterno`, `apMaterno` y `ci` (coincidencia parcial, case-insensitive)
+            - `nombres` — búsqueda por nombres exacto o parcial
+            - `apPaterno`, `apMaterno` — filtros individuales
+            - `ci` — número de documento (coincidencia exacta)
+            - `estado` — true/false
+            - `page`, `size`, `sort` — paginación y orden
+          - Ejemplo de llamada:
+            /api/personas/search?q=juan+perez&page=0&size=20&sort=apPaterno,asc
+          - Respuesta 200: [ PersonaResponse ]
+            - PersonaResponse: { id, nombres, apPaterno, apMaterno, ci, email, telefono, fechaNacimiento }
+
+        - /api/usuarios/search (GET)
+          - Descripción: Buscar usuarios por username, email o por persona asociada.
+          - Roles: ROLE_ADMIN
+          - Query parameters (opcionales):
+            - `username` — búsqueda por username (parcial)
+            - `email` — búsqueda por email (parcial)
+            - `rolId` — filtrar por rol
+            - `personaId` — buscar por persona asociada
+            - `estado` — true/false
+            - `page`, `size`, `sort`
+          - Ejemplo de llamada:
+            /api/usuarios/search?username=juan&page=0&size=50
+          - Respuesta 200: [ UsuarioResponse ]
+
+        - Filtros extendidos para /api/inscripciones (GET)
+          - Descripción: el endpoint de listado de inscripciones acepta varios filtros por query params para búsquedas precisas.
+          - Roles: ROLE_ADMIN, ROLE_SECRETARIA, ROLE_DIRECTOR
+          - Query parameters recomendados:
+            - `estudianteId` — filtrar por estudiante
+            - `grupoId` — filtrar por grupo
+            - `matriculaId` — filtrar por matrícula
+            - `estado` — p.ej. `ACTIVA`, `RETIRADA` (según enum)
+            - `tipoInscripcion` — p.ej. `REGULAR`, `EXTRAORDINARIA`
+            - `desdeFecha` / `hastaFecha` — rango para `fechaInscripcion` (ISO 8601: 2025-12-01 o 2025-12-01T00:00:00)
+            - `periodoAcademicoId` — filtrar por periodo
+            - `page`, `size`, `sort`
+          - Ejemplo de llamada:
+            /api/inscripciones?grupoId=21&desdeFecha=2025-03-01&hastaFecha=2025-06-30&page=0&size=100
+          - Respuesta 200: [ InscripcionResponse ]
+
+        - Filtros para /api/calificaciones (GET)
+          - Query params útiles:
+            - `inscripcionId`, `tipoEvaluacionId`, `docenteId`
+            - `minNota`, `maxNota` — rango numérico de nota
+            - `desdeFecha` / `hastaFecha` — rango para `fechaEvaluacion` (ISO 8601)
+            - `page`, `size`, `sort`
+          - Ejemplo: /api/calificaciones?docenteId=7&desdeFecha=2025-01-01&hastaFecha=2025-06-30
+          - Respuesta 200: [ CalificacionResponse ]
+
+        - Filtros para /api/asistencias (GET)
+          - Query params:
+            - `grupoId`, `inscripcionId`, `docenteId`
+            - `estado` — `PRESENTE`, `AUSENTE`, `TARDANZA`
+            - `desdeFecha` / `hastaFecha` — rango para la fecha de asistencia
+            - `page`, `size`, `sort`
+          - Ejemplo: /api/asistencias?grupoId=21&desdeFecha=2025-03-01&hastaFecha=2025-03-31
+          - Respuesta 200: [ AsistenciaResponse ]
+
+        - Filtros para /api/matriculas (GET)
+          - Query params:
+            - `estudianteId`, `carreraSedeId`, `periodoAcademicoId`
+            - `desdeFecha` / `hastaFecha` — rango para la fecha de matriculación
+            - `page`, `size`, `sort`
+          - Respuesta 200: [ MatriculaResponse ]
+
+        - Filtros para /api/horarios (GET)
+          - Query params:
+            - `grupoId`, `aulaId`, `diaSemana` (1-7)
+            - `horaDesde` / `horaHasta` — para filtrar por rango de horas (HH:mm)
+            - `page`, `size`, `sort`
+          - Respuesta 200: [ HorarioResponse ]
+
+        Tips y convenciones para filtros de fecha
+        - Formato recomendado: ISO 8601 (YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss). Si sólo se indica fecha (YYYY-MM-DD) se interpreta en zona local como inicio/fin del día según `desde`/`hasta`.
+        - Usa `desdeFecha` y `hastaFecha` como nombres estándar, pero algunos endpoints pueden diferir (`fechaInscripcionDesde`, `fechaEvaluacionHasta`). Recomendación: estandarizar en backend a `desdeFecha`/`hastaFecha` para consistencia.
+
+        Paginación y orden
+        - Parámetros comunes: `page` (0-index), `size`, `sort=campo,asc|desc`.
+        - Ejemplo de llamada combinada:
+          /api/inscripciones?estudianteId=123&desdeFecha=2025-01-01&hastaFecha=2025-12-31&page=0&size=50&sort=fechaInscripcion,desc
+
+
         ## Matrículas
 
         - /api/matriculas (POST)
