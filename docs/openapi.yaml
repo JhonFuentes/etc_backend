@@ -1,0 +1,297 @@
+openapi: 3.0.3
+info:
+  title: Etc Backend API (Institución Educativa)
+  version: "1.0.0"
+  description: |
+    OpenAPI specification for the educational institution API.
+    Roles in DB: "Administrador", "Director", "Docente", "Estudiante", "Secretaria".
+    Mapped Spring authorities: ROLE_ADMIN, ROLE_DIRECTOR, ROLE_DOCENTE, ROLE_ESTUDIANTE, ROLE_SECRETARIA.
+servers:
+  - url: /
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+    Usuario:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        rol:
+          type: object
+          properties:
+            id:
+              type: integer
+            nombre:
+              type: string
+        persona:
+          $ref: '#/components/schemas/Persona'
+    Persona:
+      type: object
+      properties:
+        id:
+          type: integer
+        nombres:
+          type: string
+        apPaterno:
+          type: string
+        apMaterno:
+          type: string
+        email:
+          type: string
+    Estudiante:
+      type: object
+      properties:
+        id:
+          type: integer
+        usuarioId:
+          type: integer
+        codigoEstudiante:
+          type: string
+        estadoAcademico:
+          type: string
+    Materia:
+      type: object
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+        nombre:
+          type: string
+        semestre:
+          type: integer
+    Grupo:
+      type: object
+      properties:
+        id:
+          type: integer
+        materiaId:
+          type: integer
+        materiaNombre:
+          type: string
+        docenteId:
+          type: integer
+        docenteNombres:
+          type: string
+        periodoAcademicoId:
+          type: integer
+        nombre:
+          type: string
+paths:
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and obtain JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: JWT response
+        '400':
+          description: Bad request
+  /api/usuarios:
+    get:
+      tags: [Usuarios]
+      security:
+        - bearerAuth: []
+      summary: List users
+      description: Requires ROLE_ADMIN
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Usuario'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/usuarios/{id}:
+    get:
+      tags: [Usuarios]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      summary: Get user by id
+      responses:
+        '200':
+          description: Usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+        '404':
+          description: Not found
+  /api/estudiantes:
+    get:
+      tags: [Estudiantes]
+      security:
+        - bearerAuth: []
+      summary: List students
+      description: Requires ROLE_ADMIN or ROLE_DOCENTE
+      responses:
+        '200':
+          description: List of estudiantes
+        '403':
+          description: Forbidden
+  /api/estudiantes/{id}:
+    get:
+      tags: [Estudiantes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      summary: Get estudiante by id
+      responses:
+        '200': { description: Estudiante }
+        '404': { description: Not found }
+  /api/materias:
+    get:
+      tags: [Materias]
+      security:
+        - bearerAuth: []
+      summary: List materias
+      responses:
+        '200': { description: list } 
+  /api/materias/{id}:
+    get:
+      tags: [Materias]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: materia }
+  /api/grupos:
+    get:
+      tags: [Grupos]
+      security:
+        - bearerAuth: []
+      summary: List grupos
+      responses:
+        '200': { description: list }
+  /api/grupos/{id}:
+    get:
+      tags: [Grupos]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: grupo }
+  /api/inscripciones:
+    post:
+      tags: [Inscripciones]
+      security:
+        - bearerAuth: []
+      summary: Create an inscripcion (student or secretary)
+      description: ROLE_ESTUDIANTE can create for self; ROLE_SECRETARIA or ROLE_ADMIN can create administratively.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                estudianteId: { type: integer }
+                grupoId: { type: integer }
+      responses:
+        '201': { description: Created }
+        '403': { description: Forbidden }
+  /api/matriculas:
+    post:
+      tags: [Matriculas]
+      security:
+        - bearerAuth: []
+      summary: Confirm matricula (secretaria/admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                inscripcionId: { type: integer }
+      responses:
+        '201': { description: Created }
+        '403': { description: Forbidden }
+  /api/calificaciones:
+    post:
+      tags: [Calificaciones]
+      security:
+        - bearerAuth: []
+      summary: Create calificacion (docente)
+      description: ROLE_DOCENTE for their groups, or ROLE_ADMIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                estudianteId: { type: integer }
+                grupoId: { type: integer }
+                nota: { type: number }
+      responses:
+        '201': { description: Created }
+        '403': { description: Forbidden }
+  /api/asistencias:
+    post:
+      tags: [Asistencias]
+      security:
+        - bearerAuth: []
+      summary: Record asistencia (docente)
+      description: ROLE_DOCENTE, ROLE_ADMIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                estudianteId: { type: integer }
+                grupoId: { type: integer }
+                presente: { type: boolean }
+      responses:
+        '201': { description: Created }
+        '403': { description: Forbidden }
+security:
+  - bearerAuth: []

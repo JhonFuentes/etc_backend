@@ -224,13 +224,79 @@ Los endpoints del dashboard devuelven DTOs compactos según rol.
 
 Si quieres que formatee este documento para exportarlo (por ejemplo versión HTML o incluir ejemplos curl para cada endpoint), lo hago enseguida.
 
+OpenAPI specification
+--------------------
 
-        ## Códigos de error comunes
+He añadido una especificación OpenAPI 3.0 en `docs/openapi.yaml` que cubre los endpoints principales y las reglas de acceso por rol. Puedes cargar `docs/openapi.yaml` en Swagger UI o cualquier herramienta compatible (p. ej. Redoc) para navegar y exportar la documentación.
 
-        - 400 Bad Request: ejemplo de cuerpo (texto): "Error: <mensaje>"
-        - 404 Not Found: no se devuelve JSON por defecto; endpoint suele responder con 404 status y body vacío.
-        - 401 / 403: pueden devolver JSON de error o body vacío según la configuración de Spring Security.
+## Códigos de error comunes
 
-        ---
+- 400 Bad Request: ejemplo de cuerpo (texto): "Error: <mensaje>"
+- 404 Not Found: no se devuelve JSON por defecto; endpoint suele responder con 404 status y body vacío.
+- 401 / 403: pueden devolver JSON de error o body vacío según la configuración de Spring Security.
 
-        Estado: ejemplos JSON guardados en este archivo.
+---
+
+Estado: ejemplos JSON guardados en este archivo y OpenAPI generado en `docs/openapi.yaml`.
+
+## Endpoints adicionales implementados (scaffolding)
+
+He añadido controladores mínimos para operaciones administrativas y académicas. A continuación se listan los endpoints recién implementados y los roles que los pueden usar.
+
+Inscripciones
+- POST /api/inscripciones
+  - Descripción: Crear una inscripción. Un estudiante autenticado puede inscribirse a un grupo propio; el personal administrativo puede crear inscripciones para cualquier estudiante.
+  - Request: { estudianteId, grupoId, matriculaId }
+  - Roles: ROLE_ESTUDIANTE (para inscribirse a sí mismo), ROLE_SECRETARIA, ROLE_ADMIN
+  - Respuesta: 201 Created con objeto Inscripcion
+- GET /api/inscripciones
+  - Descripción: Listar inscripciones
+  - Roles: ROLE_ADMIN, ROLE_SECRETARIA, ROLE_DIRECTOR
+
+Matriculas
+- POST /api/matriculas
+  - Descripción: Crear una matrícula (registro administrativo que asocia estudiante, carreraSede y periodo).
+  - Request: { estudianteId, carreraSedeId, periodoAcademicoId, semestreCursando, montoMatricula }
+  - Roles: ROLE_ADMIN, ROLE_SECRETARIA
+  - Respuesta: 201 Created con objeto Matricula
+- GET /api/matriculas/{id}
+  - Descripción: Obtener matrícula por id
+  - Roles: autenticados (según uso) / administrativos
+
+Calificaciones
+- POST /api/calificaciones
+  - Descripción: Registrar una calificación para una inscripción y tipo de evaluación.
+  - Request: { inscripcionId, tipoEvaluacionId, nota, fechaEvaluacion }
+  - Roles: ROLE_DOCENTE (preferentemente limitado a sus grupos) y ROLE_ADMIN
+  - Respuesta: 201 Created con objeto Calificacion
+
+Asistencias
+- POST /api/asistencias
+  - Descripción: Registrar asistencia para una sesión (horario) y una inscripción.
+  - Request: { inscripcionId, horarioId, fecha, estado, minutosTardanza, observaciones }
+  - Roles: ROLE_DOCENTE, ROLE_ADMIN
+  - Respuesta: 201 Created con objeto Asistencia
+
+Aulas
+- GET /api/aulas
+  - Descripción: Listar aulas
+  - Roles: autenticados
+- POST /api/aulas
+  - Descripción: Crear aula
+  - Request: { sedeId, nombre, capacidad, tipo }
+  - Roles: ROLE_ADMIN, ROLE_SECRETARIA
+
+Horarios
+- GET /api/horarios/grupo/{grupoId}
+  - Descripción: Obtener horarios de un grupo
+  - Roles: autenticados
+- POST /api/horarios
+  - Descripción: Crear horario para un grupo y aula
+  - Request: { grupoId, aulaId, diaSemana, horaInicio, horaFin, tipo }
+  - Roles: ROLE_ADMIN, ROLE_SECRETARIA, ROLE_DIRECTOR
+
+Notas sobre seguridad y buenas prácticas
+- Los controladores implementados actualmente devuelven entidades JPA directamente para agilizar el scaffolding; recomiendo transformar estas respuestas a DTOs de respuesta antes de exponer en producción para evitar LazyInitializationException y sobreexposición de datos.
+- Para restricciones finas (p. ej. permitir que un docente sólo registre calificaciones para sus grupos) añade comprobaciones a nivel de servicio: por ejemplo un bean `SecurityService` con métodos `isDocenteDelGrupo(authentication, grupoId)` y usarlo en `@PreAuthorize`.
+- El mapeo de roles desde la base de datos a Spring se realiza en `UserPrincipal.create(...)` y normaliza nombres como "Administrador" -> `ROLE_ADMIN`. Revisa ese método si tus nombres en BD son distintos.
+
