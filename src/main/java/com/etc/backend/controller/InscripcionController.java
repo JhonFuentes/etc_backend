@@ -11,6 +11,8 @@ import com.etc.backend.repository.InscripcionRepository;
 import com.etc.backend.repository.MatriculaRepository;
 import com.etc.backend.repository.EstudianteRepository;
 import com.etc.backend.security.UserPrincipal;
+import com.etc.backend.security.PermissionChecker;
+import com.etc.backend.security.PermissionMatrix;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,6 +38,9 @@ public class InscripcionController {
 
     @Autowired
     private MatriculaRepository matriculaRepository;
+
+    @Autowired
+    private PermissionChecker permissionChecker;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','SECRETARIA','DIRECTOR')")
@@ -76,6 +81,9 @@ public class InscripcionController {
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETARIA') or (hasRole('ESTUDIANTE') and @securityService.isEstudianteOwner(authentication, #req.estudianteId))")
     public ResponseEntity<?> create(@RequestBody InscripcionRequest req, Authentication authentication) {
+        if (!permissionChecker.canCreate(authentication, PermissionMatrix.Module.ENROLLMENTS)) {
+            return ResponseEntity.status(403).body("No tiene permiso para crear inscripciones");
+        }
         UserPrincipal up = (UserPrincipal) authentication.getPrincipal();
 
         Estudiante estudiante;
@@ -116,7 +124,10 @@ public class InscripcionController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','SECRETARIA')")
-    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody InscripcionRequest req) {
+    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody InscripcionRequest req, Authentication authentication) {
+        if (!permissionChecker.canUpdate(authentication, PermissionMatrix.Module.ENROLLMENTS)) {
+            return ResponseEntity.status(403).body("No tiene permiso para actualizar inscripciones");
+        }
         return inscripcionRepository.findById(id).map(existing -> {
             // minimal update: allow changing estado and fechaRetiro/motivo via request if provided
             // For now, we only return 204 No Content after update (no complex mapping)
@@ -127,7 +138,10 @@ public class InscripcionController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> delete(@PathVariable Integer id) {
+    public ResponseEntity<?> delete(@PathVariable Integer id, Authentication authentication) {
+        if (!permissionChecker.canDelete(authentication, PermissionMatrix.Module.ENROLLMENTS)) {
+            return ResponseEntity.status(403).body("No tiene permiso para eliminar inscripciones");
+        }
         return inscripcionRepository.findById(id).map(i -> {
             inscripcionRepository.delete(i);
             return ResponseEntity.noContent().build();

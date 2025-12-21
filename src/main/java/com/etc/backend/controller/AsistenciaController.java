@@ -11,6 +11,8 @@ import com.etc.backend.repository.InscripcionRepository;
 import com.etc.backend.repository.HorarioRepository;
 import com.etc.backend.repository.UsuarioRepository;
 import com.etc.backend.security.UserPrincipal;
+import com.etc.backend.security.PermissionChecker;
+import com.etc.backend.security.PermissionMatrix;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,9 +38,15 @@ public class AsistenciaController {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
+    @Autowired
+    private PermissionChecker permissionChecker;
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or (hasRole('DOCENTE') and @securityService.isDocenteOfAsistencia(authentication, #req.grupoId))")
     public ResponseEntity<?> create(@RequestBody AsistenciaRequest req, Authentication authentication) {
+        if (!permissionChecker.canCreate(authentication, PermissionMatrix.Module.ATTENDANCE)) {
+            return ResponseEntity.status(403).body("No tiene permiso para crear asistencias");
+        }
         Inscripcion ins = inscripcionRepository.findById(req.getInscripcionId()).orElse(null);
         if (ins == null) return ResponseEntity.badRequest().body("Inscripcion inválida");
 
@@ -72,7 +80,10 @@ public class AsistenciaController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or (hasRole('DOCENTE') and @securityService.isDocenteOfAsistencia(authentication, #id))")
-    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody AsistenciaRequest req) {
+    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody AsistenciaRequest req, Authentication authentication) {
+        if (!permissionChecker.canUpdate(authentication, PermissionMatrix.Module.ATTENDANCE)) {
+            return ResponseEntity.status(403).body("No tiene permiso para actualizar asistencias");
+        }
         return asistenciaRepository.findById(id).map(existing -> {
             existing.setFecha(req.getFecha());
             try { existing.setEstado(Asistencia.EstadoAsistencia.valueOf(req.getEstado())); } catch (Exception ignored) {}
@@ -92,7 +103,10 @@ public class AsistenciaController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> delete(@PathVariable Integer id) {
+    public ResponseEntity<?> delete(@PathVariable Integer id, Authentication authentication) {
+        if (!permissionChecker.canDelete(authentication, PermissionMatrix.Module.ATTENDANCE)) {
+            return ResponseEntity.status(403).body("No tiene permiso para eliminar asistencias");
+        }
         return asistenciaRepository.findById(id).map(a -> {
             asistenciaRepository.delete(a);
             return ResponseEntity.noContent().build();

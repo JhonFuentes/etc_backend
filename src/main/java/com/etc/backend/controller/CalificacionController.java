@@ -11,6 +11,8 @@ import com.etc.backend.repository.InscripcionRepository;
 import com.etc.backend.repository.TipoEvaluacionRepository;
 import com.etc.backend.repository.UsuarioRepository;
 import com.etc.backend.security.UserPrincipal;
+import com.etc.backend.security.PermissionChecker;
+import com.etc.backend.security.PermissionMatrix;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,9 +38,15 @@ public class CalificacionController {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
+    @Autowired
+    private PermissionChecker permissionChecker;
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or (hasRole('DOCENTE') and @securityService.isDocenteOfInscripcion(authentication, #req.inscripcionId))")
     public ResponseEntity<?> create(@RequestBody CalificacionRequest req, Authentication authentication) {
+        if (!permissionChecker.canCreate(authentication, PermissionMatrix.Module.GRADES)) {
+            return ResponseEntity.status(403).body("No tiene permiso para crear calificaciones");
+        }
         Inscripcion ins = inscripcionRepository.findById(req.getInscripcionId()).orElse(null);
         if (ins == null) return ResponseEntity.badRequest().body("Inscripcion inválida");
 
@@ -68,7 +76,10 @@ public class CalificacionController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or (hasRole('DOCENTE') and @securityService.isDocenteOfCalificacion(authentication, #id))")
-    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody CalificacionRequest req) {
+    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody CalificacionRequest req, Authentication authentication) {
+        if (!permissionChecker.canUpdate(authentication, PermissionMatrix.Module.GRADES)) {
+            return ResponseEntity.status(403).body("No tiene permiso para actualizar calificaciones");
+        }
         return calificacionRepository.findById(id).map(existing -> {
             existing.setNota(req.getNota());
             existing.setFechaEvaluacion(req.getFechaEvaluacion());
@@ -85,7 +96,10 @@ public class CalificacionController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> delete(@PathVariable Integer id) {
+    public ResponseEntity<?> delete(@PathVariable Integer id, Authentication authentication) {
+        if (!permissionChecker.canDelete(authentication, PermissionMatrix.Module.GRADES)) {
+            return ResponseEntity.status(403).body("No tiene permiso para eliminar calificaciones");
+        }
         return calificacionRepository.findById(id).map(c -> {
             calificacionRepository.delete(c);
             return ResponseEntity.noContent().build();

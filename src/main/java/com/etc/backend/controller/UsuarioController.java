@@ -3,9 +3,12 @@ package com.etc.backend.controller;
 import com.etc.backend.dto.response.UsuarioSimpleResponse;
 import com.etc.backend.entity.Usuario;
 import com.etc.backend.repository.UsuarioRepository;
+import com.etc.backend.security.PermissionChecker;
+import com.etc.backend.security.PermissionMatrix;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +21,9 @@ public class UsuarioController {
 
     @Autowired
     private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private PermissionChecker permissionChecker;
 
     private UsuarioSimpleResponse toDto(Usuario u) {
         Integer rolId = null;
@@ -92,6 +98,42 @@ public class UsuarioController {
         return usuarioRepository.findById(id)
                 .map(u -> ResponseEntity.ok(toDto(u)))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> createUsuario(@RequestBody Usuario usuario, Authentication auth) {
+        if (!permissionChecker.canCreate(auth, PermissionMatrix.Module.USERS)) {
+            return ResponseEntity.status(403).body("No tiene permiso para crear usuarios");
+        }
+        Usuario saved = usuarioRepository.save(usuario);
+        return ResponseEntity.status(201).body(toDto(saved));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> updateUsuario(@PathVariable Integer id, @RequestBody Usuario usuario, Authentication auth) {
+        if (!permissionChecker.canUpdate(auth, PermissionMatrix.Module.USERS)) {
+            return ResponseEntity.status(403).body("No tiene permiso para actualizar usuarios");
+        }
+        return usuarioRepository.findById(id).map(existing -> {
+            existing.setUsername(usuario.getUsername());
+            existing.setEstado(usuario.getEstado());
+            Usuario saved = usuarioRepository.save(existing);
+            return ResponseEntity.ok(toDto(saved));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> deleteUsuario(@PathVariable Integer id, Authentication auth) {
+        if (!permissionChecker.canDelete(auth, PermissionMatrix.Module.USERS)) {
+            return ResponseEntity.status(403).body("No tiene permiso para eliminar usuarios");
+        }
+        return usuarioRepository.findById(id).map(u -> {
+            usuarioRepository.delete(u);
+            return ResponseEntity.noContent().build();
+        }).orElse(ResponseEntity.notFound().build());
     }
 }
 
